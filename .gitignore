@@ -1,0 +1,16 @@
+.venv/
+__pycache__/
+.ipynb_checkpoints/
+.DS_Store
+
+# Source data is distributed separately
+*.csv
+*.jsonl
+DOTA 2/
+data/
+
+# Local experiment artifacts
+catboost_info/
+optuna.db
+*.pkl
+*.joblib
