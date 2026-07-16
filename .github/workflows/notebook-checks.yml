@@ -1,4 +1,4 @@
-name: Notebook checks
+name: Quality checks
 
 on:
   push:
@@ -10,24 +10,56 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: quality-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  validate:
+  quality:
+    name: Lint, test, and validate notebook
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: "3.12"
           cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
 
-      - name: Install dependencies
-        run: pip install -r requirements.txt
+      - name: Install test dependencies
+        run: python -m pip install -r requirements-dev.txt
 
-      - name: Validate notebook JSON
-        run: python -m json.tool Dota2winnerPrediction.ipynb > /dev/null
+      - name: Check dependency consistency
+        run: python -m pip check
 
-      - name: Smoke-test imports
-        run: python -c "import catboost, ipywidgets, matplotlib, numpy, optuna, pandas, sklearn"
+      - name: Lint and verify formatting
+        run: |
+          python -m ruff check .
+          python -m ruff format --check .
+
+      - name: Run contract and evaluation tests
+        run: python -m pytest
+
+      - name: Validate clean review notebook
+        run: |
+          python -m json.tool Dota2winnerPrediction.ipynb > /dev/null
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          notebook = json.loads(Path("Dota2winnerPrediction.ipynb").read_text(encoding="utf-8"))
+          code_cells = [cell for cell in notebook["cells"] if cell["cell_type"] == "code"]
+          assert all(cell.get("execution_count") is None for cell in code_cells)
+          assert all(not cell.get("outputs") for cell in code_cells)
+          assert "dota_predictor" in "\n".join(
+              "".join(cell.get("source", [])) for cell in code_cells
+          )
+          PY
+
+      - name: Compile package and CLI
+        run: python -m compileall -q dota_predictor tests
