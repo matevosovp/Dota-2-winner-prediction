@@ -1,5 +1,10 @@
 .venv/
 __pycache__/
+.pytest_cache/
+.pytest-tmp/
+pytest-cache-files-*/
+.coverage
+htmlcov/
 .ipynb_checkpoints/
 .DS_Store
 
@@ -14,3 +19,4 @@ catboost_info/
 optuna.db
 *.pkl
 *.joblib
+metrics/
